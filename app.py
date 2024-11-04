@@ -6,6 +6,8 @@ import json
 import pytz
 import os
 import pandas as pd
+from flask import send_file
+import io
 
 # Import the configuration
 from database.config import Config
@@ -41,7 +43,7 @@ def dashboard():
     else:
         selected_date = date.today()
 
-    query = Attendance.query.join(Volunteer)
+    query = Attendance.query.join(Volunteer).order_by(Attendance.check_in)
 
     if search_query:
         query = query.filter(
@@ -59,6 +61,7 @@ def dashboard():
             attendance.check_out = attendance.check_out.astimezone(local_tz)
 
     return render_template('dashboard.html', attendances=attendances, selected_date=selected_date)
+
 # API Routes
 
 
@@ -131,7 +134,46 @@ def process_scan():
             'message': f'Error processing scan: {str(e)}'
         })
 
-# Import volunteers from CSV
+
+@app.route('/download-attendance', methods=['GET'])
+def download_attendance():
+    selected_date_str = request.args.get('date')
+    if not selected_date_str:
+        return jsonify({'success': False, 'message': 'No date provided'})
+
+    selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+
+    query = Attendance.query.join(Volunteer).filter(
+        db.func.date(Attendance.check_in) == selected_date
+    ).order_by(Attendance.check_in)
+
+    attendances = query.all()
+
+    # Convert check_in and check_out times to UTC+7
+    for attendance in attendances:
+        if attendance.check_in:
+            attendance.check_in = attendance.check_in.astimezone(local_tz)
+        if attendance.check_out:
+            attendance.check_out = attendance.check_out.astimezone(local_tz)
+
+    # Create a DataFrame
+    data = [{
+        'ID': attendance.volunteer.id,
+        'Name': attendance.volunteer.name,
+        'Team': attendance.volunteer.team,
+        'Check-in Time': attendance.check_in.strftime('%H:%M:%S') if attendance.check_in else 'N/A',
+        'Check-out Time': attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A'
+    } for attendance in attendances]
+
+    df = pd.DataFrame(data)
+
+    # Create an Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Attendance')
+    output.seek(0)
+
+    return send_file(output, download_name=f'attendance_{selected_date_str}.xlsx', as_attachment=True)
 
 
 @app.route('/api/import-volunteers', methods=['POST'])
@@ -146,6 +188,14 @@ def import_volunteers():
     try:
         df = pd.read_csv(file)
         for _, row in df.iterrows():
+            # Check if a volunteer with the same name already exists
+            existing_volunteer = Volunteer.query.filter_by(
+                name=row['name']).first()
+            if existing_volunteer:
+                print(
+                    f"Volunteer with name {row['name']} already exists. Skipping...")
+                continue
+
             volunteer = Volunteer(
                 id=row['id'],
                 name=row['name'],

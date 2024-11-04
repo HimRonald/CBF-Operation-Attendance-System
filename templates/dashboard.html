@@ -12,23 +12,25 @@
             <h1 class="text-2xl font-bold mb-4">Attendance Dashboard</h1>
             
             <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">Select Date</h2>
-                <form method="GET" action="/dashboard.html">
-                    <input type="date" name="date" value="{{ selected_date }}" class="border rounded px-4 py-2 mb-4">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Filter</button>
-                </form>
-            </div>
-
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">Search</h2>
-                <form method="GET" action="/dashboard.html">
-                    <input type="text" name="search" placeholder="Search by name or team" class="border rounded px-4 py-2 mb-4">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
-                </form>
+                <h2 class="text-xl font-semibold mb-4">Select Date and Search</h2>
+                <div class="flex space-x-4">
+                    <form method="GET" action="/dashboard.html" class="flex items-center space-x-2">
+                        <input type="date" name="date" value="{{ selected_date }}" class="border rounded px-4 py-2">
+                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Filter</button>
+                    </form>
+                    <form method="GET" action="/dashboard.html" class="flex items-center space-x-2">
+                        <input type="text" name="search" placeholder="Search by name or team" class="border rounded px-4 py-2">
+                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+                    </form>
+                </div>
             </div>
             
             <div class="mb-8">
                 <h2 class="text-xl font-semibold mb-4">Attendance for {{ selected_date }}</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Attendance Records</h3>
+                    <a href="/download-attendance?date={{ selected_date }}" class="bg-green-500 text-white px-4 py-2 rounded">Download as Excel</a>
+                </div>
                 <table class="min-w-full">
                     <thead>
                         <tr>
