@@ -12,7 +12,15 @@
             <h1 class="text-2xl font-bold mb-4">Attendance Dashboard</h1>
             
             <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-4">Today's Attendance</h2>
+                <h2 class="text-xl font-semibold mb-4">Select Date</h2>
+                <form method="GET" action="/dashboard.html">
+                    <input type="date" name="date" value="{{ selected_date }}" class="border rounded px-4 py-2 mb-4">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Filter</button>
+                </form>
+            </div>
+            
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Attendance for {{ selected_date }}</h2>
                 <table class="min-w-full">
                     <thead>
                         <tr>
@@ -20,16 +28,18 @@
                             <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Name</th>
                             <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Team</th>
                             <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-in Time</th>
+                            <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-out Time</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for attendance in attendances %}
-                        {% if attendance.timestamp.date() == today %}
+                        {% if attendance.check_in.date() == selected_date %}
                         <tr>
                             <td class="px-6 py-4 border-b border-gray-300">{{ attendance.volunteer.id }}</td>
                             <td class="px-6 py-4 border-b border-gray-300">{{ attendance.volunteer.name }}</td>
                             <td class="px-6 py-4 border-b border-gray-300">{{ attendance.volunteer.team }}</td>
-                            <td class="px-6 py-4 border-b border-gray-300">{{ attendance.timestamp.strftime('%H:%M:%S') }}</td>
+                            <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_in.strftime('%H:%M:%S') }}</td>
+                            <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A' }}</td>
                         </tr>
                         {% endif %}
                         {% endfor %}
