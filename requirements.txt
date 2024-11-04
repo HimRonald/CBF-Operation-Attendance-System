@@ -3,3 +3,4 @@ SQLAlchemy
 Pandas
 Openpyxl
 pytz
+psycopg2-binary

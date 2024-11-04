@@ -81,7 +81,7 @@ def process_scan():
             })
 
         # Check if already checked in today
-        today = datetime.utcnow().date()
+        today = datetime.now(local_tz).date()
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
@@ -95,7 +95,7 @@ def process_scan():
                     'volunteer': {
                         'name': volunteer.name,
                         'team': volunteer.team,
-                        'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                        'check_in_time': existing_attendance.check_in.astimezone(local_tz).strftime('%H:%M:%S'),
                         'check_out_time': None
                     }
                 })
@@ -106,8 +106,8 @@ def process_scan():
                     'volunteer': {
                         'name': volunteer.name,
                         'team': volunteer.team,
-                        'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
-                        'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
+                        'check_in_time': existing_attendance.check_in.astimezone(local_tz).strftime('%H:%M:%S'),
+                        'check_out_time': existing_attendance.check_out.astimezone(local_tz).strftime('%H:%M:%S')
                     }
                 })
 
@@ -128,7 +128,7 @@ def process_scan():
             'success': False,
             'message': f'Error processing scan: {str(e)}'
         })
-
+        
 
 @app.route('/api/confirm', methods=['POST'])
 def confirm_scan():
@@ -148,7 +148,7 @@ def confirm_scan():
             })
 
         # Check if already checked in today
-        today = datetime.utcnow().date()
+        today = datetime.now(local_tz).date()
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
