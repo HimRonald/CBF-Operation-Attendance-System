@@ -18,6 +18,14 @@
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Filter</button>
                 </form>
             </div>
+
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Search</h2>
+                <form method="GET" action="/dashboard.html">
+                    <input type="text" name="search" placeholder="Search by name or team" class="border rounded px-4 py-2 mb-4">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Search</button>
+                </form>
+            </div>
             
             <div class="mb-8">
                 <h2 class="text-xl font-semibold mb-4">Attendance for {{ selected_date }}</h2>

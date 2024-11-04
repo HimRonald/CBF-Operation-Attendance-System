@@ -34,12 +34,22 @@ def scanner():
 @app.route('/dashboard.html')
 def dashboard():
     selected_date_str = request.args.get('date')
+    search_query = request.args.get('search')
+
     if selected_date_str:
         selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
     else:
         selected_date = date.today()
 
-    attendances = Attendance.query.all()
+    query = Attendance.query.join(Volunteer)
+
+    if search_query:
+        query = query.filter(
+            (Volunteer.name.ilike(f'%{search_query}%')) |
+            (Volunteer.team.ilike(f'%{search_query}%'))
+        )
+
+    attendances = query.all()
 
     # Convert check_in and check_out times to UTC+7
     for attendance in attendances:
@@ -49,7 +59,6 @@ def dashboard():
             attendance.check_out = attendance.check_out.astimezone(local_tz)
 
     return render_template('dashboard.html', attendances=attendances, selected_date=selected_date)
-
 # API Routes
 
 
