@@ -11,7 +11,7 @@
         <a href="/" class="text-blue-500 hover:text-blue-700 mb-4 inline-block">&larr; Back to Home</a>
         
         <div class="bg-white rounded-lg shadow-lg p-6">
-            <h1 class="text-2xl font-bold mb-4">Scan QR Code</h1>
+            <h1 class="text-2xl font-bold mb-4 text-center">Scan QR Code</h1>
             
             <div id="reader" class="mb-4"></div>
             
@@ -21,6 +21,33 @@
             
             <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
                 <span id="error-message"></span>
+            </div>
+
+            <div id="verify-form" class="hidden">
+                <h2 class="text-xl font-semibold mb-4">Verify Information</h2>
+                <form id="confirmation-form" class="space-y-4">
+                    <div>
+                        <label for="volunteer-name" class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" id="volunteer-name" name="name" class="border rounded px-4 py-2 w-full" readonly>
+                    </div>
+                    <div>
+                        <label for="volunteer-team" class="block text-sm font-medium text-gray-700">Team</label>
+                        <input type="text" id="volunteer-team" name="team" class="border rounded px-4 py-2 w-full" readonly>
+                    </div>
+                    <div>
+                        <label for="check-in-time" class="block text-sm font-medium text-gray-700">Check-in Time</label>
+                        <input type="text" id="check-in-time" name="check_in_time" class="border rounded px-4 py-2 w-full" readonly>
+                    </div>
+                    <div>
+                        <label for="check-out-time" class="block text-sm font-medium text-gray-700">Check-out Time</label>
+                        <input type="text" id="check-out-time" name="check_out_time" class="border rounded px-4 py-2 w-full" readonly>
+                    </div>
+                    <button type="button" id="confirm-button" class="bg-blue-500 text-white px-4 py-2 rounded">Confirm</button>
+                </form>
+            </div>
+
+            <div id="confirmation-result" class="hidden bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mt-4">
+                <span id="confirmation-message"></span>
             </div>
         </div>
     </div>
@@ -48,11 +75,25 @@
                 const errorDiv = document.getElementById('error');
                 const resultMessage = document.getElementById('result-message');
                 const errorMessage = document.getElementById('error-message');
+                const verifyForm = document.getElementById('verify-form');
+                const volunteerName = document.getElementById('volunteer-name');
+                const volunteerTeam = document.getElementById('volunteer-team');
+                const checkInTime = document.getElementById('check-in-time');
+                const checkOutTime = document.getElementById('check-out-time');
                 
                 if (data.success) {
                     resultDiv.classList.remove('hidden');
                     errorDiv.classList.add('hidden');
-                    resultMessage.textContent = `${data.volunteer.name} (${data.volunteer.team}) checked in at ${data.volunteer.check_in_time}`;
+                    resultMessage.textContent = `${data.volunteer.name} (${data.volunteer.team}) scanned successfully. Please confirm.`;
+                    
+                    // Populate the form with volunteer data
+                    volunteerName.value = data.volunteer.name;
+                    volunteerTeam.value = data.volunteer.team;
+                    checkInTime.value = data.volunteer.check_in_time || 'N/A';
+                    checkOutTime.value = data.volunteer.check_out_time || 'N/A';
+                    
+                    // Show the verification form
+                    verifyForm.classList.remove('hidden');
                 } else {
                     errorDiv.classList.remove('hidden');
                     resultDiv.classList.add('hidden');
@@ -66,15 +107,46 @@
                 errorDiv.classList.remove('hidden');
                 errorMessage.textContent = 'Error processing scan';
             });
-    
-            // Apply a delay before re-enabling the scanner
-            await delay(3000); // 3 seconds delay
-            html5QrcodeScanner.render(onScanSuccess);
         }
     
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "reader", { fps: 10, qrbox: 250 });
         html5QrcodeScanner.render(onScanSuccess);
+
+        document.getElementById('confirm-button').addEventListener('click', function() {
+            const verifyForm = document.getElementById('verify-form');
+            const volunteerName = document.getElementById('volunteer-name').value;
+            const volunteerTeam = document.getElementById('volunteer-team').value;
+            const confirmationResult = document.getElementById('confirmation-result');
+            const confirmationMessage = document.getElementById('confirmation-message');
+
+            // Send confirmation to the server
+            fetch('/api/confirm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({name: volunteerName, team: volunteerTeam})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    confirmationMessage.textContent = `${volunteerName} checked ${data.message.includes('checked out') ? 'out' : 'in'} successfully at ${data.message.includes('checked out') ? data.volunteer.check_out_time : data.volunteer.check_in_time}`;
+                    confirmationResult.classList.remove('hidden');
+                    verifyForm.classList.add('hidden');
+                    // Re-enable the scanner
+                    html5QrcodeScanner.render(onScanSuccess);
+                } else {
+                    confirmationMessage.textContent = `Error confirming information: ${data.message}`;
+                    confirmationResult.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                confirmationMessage.textContent = 'Error confirming information';
+                confirmationResult.classList.remove('hidden');
+            });
+        });
     </script>
 </body>
 </html>

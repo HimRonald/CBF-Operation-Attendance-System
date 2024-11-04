@@ -89,6 +89,73 @@ def process_scan():
 
         if existing_attendance:
             if existing_attendance.check_out is None:
+                return jsonify({
+                    'success': True,
+                    'message': f'{volunteer.name} is currently checked in. Please confirm check-out.',
+                    'volunteer': {
+                        'name': volunteer.name,
+                        'team': volunteer.team,
+                        'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                        'check_out_time': None
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'{volunteer.name} has already checked out today',
+                    'volunteer': {
+                        'name': volunteer.name,
+                        'team': volunteer.team,
+                        'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                        'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
+                    }
+                })
+
+        # Prepare for new check-in
+        return jsonify({
+            'success': True,
+            'message': f'{volunteer.name} is ready to check in. Please confirm.',
+            'volunteer': {
+                'name': volunteer.name,
+                'team': volunteer.team,
+                'check_in_time': None,
+                'check_out_time': None
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error processing scan: {str(e)}'
+        })
+
+
+@app.route('/api/confirm', methods=['POST'])
+def confirm_scan():
+    try:
+        data = request.json
+        volunteer_name = data['name']
+        volunteer_team = data['team']
+
+        # Find volunteer in database
+        volunteer = Volunteer.query.filter_by(
+            name=volunteer_name, team=volunteer_team).first()
+
+        if not volunteer:
+            return jsonify({
+                'success': False,
+                'message': 'Volunteer not found'
+            })
+
+        # Check if already checked in today
+        today = datetime.utcnow().date()
+        existing_attendance = Attendance.query.filter(
+            Attendance.volunteer_id == volunteer.id,
+            db.func.date(Attendance.check_in) == today
+        ).first()
+
+        if existing_attendance:
+            if existing_attendance.check_out is None:
                 existing_attendance.check_out = datetime.now(local_tz)
                 db.session.commit()
                 return jsonify({
@@ -131,10 +198,9 @@ def process_scan():
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'Error processing scan: {str(e)}'
+            'message': f'Error confirming scan: {str(e)}'
         })
-
-
+        
 @app.route('/download-attendance', methods=['GET'])
 def download_attendance():
     selected_date_str = request.args.get('date')
