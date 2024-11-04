@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR Scanner</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <a href="/" class="text-blue-500 hover:text-blue-700 mb-4 inline-block">&larr; Back to Home</a>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold mb-4">Scan QR Code</h1>
+            
+            <div id="reader" class="mb-4"></div>
+            
+            <div id="result" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                <span id="result-message"></span>
+            </div>
+            
+            <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                <span id="error-message"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    
+        async function onScanSuccess(decodedText, decodedResult) {
+            // Disable the scanner
+            html5QrcodeScanner.clear();
+    
+            // Send the scanned data to the server
+            fetch('/api/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({code: decodedText})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                const errorDiv = document.getElementById('error');
+                const resultMessage = document.getElementById('result-message');
+                const errorMessage = document.getElementById('error-message');
+                
+                if (data.success) {
+                    resultDiv.classList.remove('hidden');
+                    errorDiv.classList.add('hidden');
+                    resultMessage.textContent = `${data.volunteer.name} (${data.volunteer.team}) checked in at ${data.volunteer.check_in_time}`;
+                } else {
+                    errorDiv.classList.remove('hidden');
+                    resultDiv.classList.add('hidden');
+                    errorMessage.textContent = data.message;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorDiv = document.getElementById('error');
+                const errorMessage = document.getElementById('error-message');
+                errorDiv.classList.remove('hidden');
+                errorMessage.textContent = 'Error processing scan';
+            });
+    
+            // Apply a delay before re-enabling the scanner
+            await delay(3000); // 3 seconds delay
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+    
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+</body>
+</html>
