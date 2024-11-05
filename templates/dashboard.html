@@ -41,6 +41,9 @@
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Team</th>
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-in Time</th>
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-out Time</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Breakfast</th> <!-- New Column -->
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Lunch</th> <!-- New Column -->
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Dinner</th> <!-- New Column -->
                             </tr>
                         </thead>
                         <tbody>
@@ -52,6 +55,9 @@
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.volunteer.team }}</td>
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_in.strftime('%H:%M:%S') }}</td>
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A' }}</td>
+                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.breakfast else 'No' }}</td> <!-- Breakfast -->
+                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.lunch else 'No' }}</td> <!-- Lunch -->
+                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.dinner else 'No' }}</td> <!-- Dinner -->
                             </tr>
                             {% endif %}
                             {% endfor %}

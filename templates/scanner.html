@@ -43,6 +43,15 @@
                         <label for="check-out-time" class="block text-sm font-medium text-gray-700">Check-out Time</label>
                         <input type="text" id="check-out-time" name="check_out_time" class="border rounded px-4 py-2 w-full" readonly>
                     </div>
+                    <div>
+                        <label for="meal-type" class="block text-sm font-medium text-gray-700">Meal Type</label>
+                        <select id="meal-type" name="meal_type" class="border rounded px-4 py-2 w-full">
+                            <option value="">None</option>
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                        </select>
+                    </div>
                     <button type="button" id="confirm-button" class="bg-blue-500 text-white px-4 py-2 rounded">Confirm</button>
                 </form>
             </div>
@@ -59,19 +68,24 @@
         }
     
         async function onScanSuccess(decodedText, decodedResult) {
+            // Show a loading animation (you can add an actual loading spinner in your HTML)
+            document.getElementById('result-message').textContent = 'Processing...';
+            document.getElementById('result').classList.remove('hidden');
+            
             // Disable the scanner
             html5QrcodeScanner.clear();
-    
-            // Send the scanned data to the server
-            fetch('/api/scan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({code: decodedText})
-            })
-            .then(response => response.json())
-            .then(data => {
+
+            try {
+                // Send the scanned data to the server
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code: decodedText })
+                });
+                const data = await response.json();
+
                 const resultDiv = document.getElementById('result');
                 const errorDiv = document.getElementById('error');
                 const resultMessage = document.getElementById('result-message');
@@ -81,18 +95,18 @@
                 const volunteerTeam = document.getElementById('volunteer-team');
                 const checkInTime = document.getElementById('check-in-time');
                 const checkOutTime = document.getElementById('check-out-time');
-                
+
                 if (data.success) {
                     resultDiv.classList.remove('hidden');
                     errorDiv.classList.add('hidden');
                     resultMessage.textContent = `${data.volunteer.name} (${data.volunteer.team}) scanned successfully. Please confirm.`;
-                    
+
                     // Populate the form with volunteer data
                     volunteerName.value = data.volunteer.name;
                     volunteerTeam.value = data.volunteer.team;
                     checkInTime.value = data.volunteer.check_in_time || 'N/A';
                     checkOutTime.value = data.volunteer.check_out_time || 'N/A';
-                    
+
                     // Show the verification form
                     verifyForm.classList.remove('hidden');
                 } else {
@@ -100,14 +114,13 @@
                     resultDiv.classList.add('hidden');
                     errorMessage.textContent = data.message;
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 const errorDiv = document.getElementById('error');
                 const errorMessage = document.getElementById('error-message');
                 errorDiv.classList.remove('hidden');
                 errorMessage.textContent = 'Error processing scan';
-            });
+            }
         }
     
         let html5QrcodeScanner = new Html5QrcodeScanner(
@@ -118,6 +131,7 @@
             const verifyForm = document.getElementById('verify-form');
             const volunteerName = document.getElementById('volunteer-name').value;
             const volunteerTeam = document.getElementById('volunteer-team').value;
+            const mealType = document.getElementById('meal-type').value;  // Get the selected meal type
             const confirmationResult = document.getElementById('confirmation-result');
             const confirmationMessage = document.getElementById('confirmation-message');
 
@@ -127,7 +141,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({name: volunteerName, team: volunteerTeam})
+                body: JSON.stringify({name: volunteerName, team: volunteerTeam, meal_type: mealType})  // Include meal type
             })
             .then(response => response.json())
             .then(data => {
@@ -148,6 +162,7 @@
                 confirmationResult.classList.remove('hidden');
             });
         });
+
     </script>
 </body>
 </html>

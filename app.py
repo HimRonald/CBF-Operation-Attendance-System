@@ -11,17 +11,34 @@ import io
 
 # Import the configuration
 from database.config import Config
+from flask_migrate import Migrate
 
 app = Flask(__name__)
+# db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 app.config.from_object(Config)
 db.init_app(app)  # Initialize the db instance with the Flask app
 
 local_tz = pytz.timezone('Asia/Phnom_Penh')
 
 # Import models
-
+from datetime import time
 # Routes for web pages
+# Meal times configuration
+BREAKFAST_TIME = (time(7, 0), time(9, 0))
+LUNCH_TIME = (time(11, 0), time(13, 0))
+DINNER_TIME = (time(17, 0), time(19, 0))
 
+# Helper function to determine if the current time is within meal times
+def get_meal_column():
+    current_time = datetime.now().time()
+    if BREAKFAST_TIME[0] <= current_time <= BREAKFAST_TIME[1]:
+        return 'breakfast'
+    elif LUNCH_TIME[0] <= current_time <= LUNCH_TIME[1]:
+        return 'lunch'
+    elif DINNER_TIME[0] <= current_time <= DINNER_TIME[1]:
+        return 'dinner'
+    return None
 
 @app.route('/')
 def index():
@@ -64,7 +81,6 @@ def dashboard():
 
 # API Routes
 
-
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
     try:
@@ -81,7 +97,7 @@ def process_scan():
             })
 
         # Check if already checked in today
-        today = datetime.now(local_tz).date()
+        today = datetime.now().date()
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
@@ -89,16 +105,30 @@ def process_scan():
 
         if existing_attendance:
             if existing_attendance.check_out is None:
-                return jsonify({
-                    'success': True,
-                    'message': f'{volunteer.name} is currently checked in. Please confirm check-out.',
-                    'volunteer': {
-                        'name': volunteer.name,
-                        'team': volunteer.team,
-                        'check_in_time': existing_attendance.check_in.astimezone(local_tz).strftime('%H:%M:%S'),
-                        'check_out_time': None
-                    }
-                })
+                meal_column = get_meal_column()
+                if meal_column and not getattr(existing_attendance, meal_column):
+                    return jsonify({
+                        'success': True,
+                        'message': f'{volunteer.name} is currently checked in. Confirm meal: {meal_column.capitalize()}.',
+                        'volunteer': {
+                            'name': volunteer.name,
+                            'team': volunteer.team,
+                            'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                            'check_out_time': None,
+                            'meal_type': meal_column.capitalize()
+                        }
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'message': f'{volunteer.name} is currently checked in. Please confirm check-out.',
+                        'volunteer': {
+                            'name': volunteer.name,
+                            'team': volunteer.team,
+                            'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                            'check_out_time': None
+                        }
+                    })
             else:
                 return jsonify({
                     'success': False,
@@ -106,8 +136,8 @@ def process_scan():
                     'volunteer': {
                         'name': volunteer.name,
                         'team': volunteer.team,
-                        'check_in_time': existing_attendance.check_in.astimezone(local_tz).strftime('%H:%M:%S'),
-                        'check_out_time': existing_attendance.check_out.astimezone(local_tz).strftime('%H:%M:%S')
+                        'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
+                        'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
                     }
                 })
 
@@ -128,7 +158,6 @@ def process_scan():
             'success': False,
             'message': f'Error processing scan: {str(e)}'
         })
-        
 
 @app.route('/api/confirm', methods=['POST'])
 def confirm_scan():
@@ -136,6 +165,7 @@ def confirm_scan():
         data = request.json
         volunteer_name = data['name']
         volunteer_team = data['team']
+        meal_type = data.get('meal_type')
 
         # Find volunteer in database
         volunteer = Volunteer.query.filter_by(
@@ -148,7 +178,7 @@ def confirm_scan():
             })
 
         # Check if already checked in today
-        today = datetime.now(local_tz).date()
+        today = datetime.now().date()
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
@@ -156,17 +186,33 @@ def confirm_scan():
 
         if existing_attendance:
             if existing_attendance.check_out is None:
-                existing_attendance.check_out = datetime.now(local_tz)
-                db.session.commit()
-                return jsonify({
-                    'success': True,
-                    'message': f'{volunteer.name} checked out successfully',
-                    'volunteer': {
-                        'name': volunteer.name,
-                        'team': volunteer.team,
-                        'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
-                    }
-                })
+                if meal_type:
+                    meal_column = meal_type.lower()
+                    if meal_column in ['breakfast', 'lunch', 'dinner']:
+                        setattr(existing_attendance, meal_column, True)
+                        db.session.commit()
+                        return jsonify({
+                            'success': True,
+                            'message': f'{meal_type} recorded for {volunteer.name}',
+                            'volunteer': {
+                                'name': volunteer.name,
+                                'team': volunteer.team,
+                                'meal_type': meal_type
+                            }
+                        })
+                else:
+                    # Check out the volunteer
+                    existing_attendance.check_out = datetime.now()
+                    db.session.commit()
+                    return jsonify({
+                        'success': True,
+                        'message': f'{volunteer.name} checked out successfully',
+                        'volunteer': {
+                            'name': volunteer.name,
+                            'team': volunteer.team,
+                            'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
+                        }
+                    })
             else:
                 return jsonify({
                     'success': False,
@@ -181,7 +227,7 @@ def confirm_scan():
 
         # Create new attendance record
         attendance = Attendance(volunteer_id=volunteer.id,
-                                check_in=datetime.now(local_tz))
+                                check_in=datetime.now())
         db.session.add(attendance)
         db.session.commit()
 
@@ -200,6 +246,7 @@ def confirm_scan():
             'success': False,
             'message': f'Error confirming scan: {str(e)}'
         })
+
         
 @app.route('/download-attendance', methods=['GET'])
 def download_attendance():
@@ -222,13 +269,16 @@ def download_attendance():
         if attendance.check_out:
             attendance.check_out = attendance.check_out.astimezone(local_tz)
 
-    # Create a DataFrame
+    # Create a DataFrame with breakfast, lunch, and dinner columns
     data = [{
         'ID': attendance.volunteer.id,
         'Name': attendance.volunteer.name,
         'Team': attendance.volunteer.team,
         'Check-in Time': attendance.check_in.strftime('%H:%M:%S') if attendance.check_in else 'N/A',
-        'Check-out Time': attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A'
+        'Check-out Time': attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A',
+        'Breakfast': 'Yes' if attendance.breakfast else 'No',
+        'Lunch': 'Yes' if attendance.lunch else 'No',
+        'Dinner': 'Yes' if attendance.dinner else 'No'
     } for attendance in attendances]
 
     df = pd.DataFrame(data)
@@ -240,6 +290,7 @@ def download_attendance():
     output.seek(0)
 
     return send_file(output, download_name=f'attendance_{selected_date_str}.xlsx', as_attachment=True)
+
 
 
 @app.route('/api/import-volunteers', methods=['POST'])
