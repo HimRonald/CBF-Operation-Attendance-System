@@ -16,6 +16,11 @@
             <a href="dashboard.html" class="bg-green-500 text-white p-4 rounded hover:bg-green-600 text-center">
                 View Dashboard
             </a>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('login_bp.logout') }}" class="bg-red-500 text-white p-4 rounded hover:bg-red-600 text-center">
+                Logout
+            </a>
+            {% endif %}
         </div>
     </div>
 </body>

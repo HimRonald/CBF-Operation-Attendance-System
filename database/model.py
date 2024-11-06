@@ -1,12 +1,12 @@
-from flask_sqlalchemy import SQLAlchemy
+# model.py
 from datetime import time
-
-db = SQLAlchemy()
+from flask_login import UserMixin
+from login.extensions import db  # Import db from extensions
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 class Volunteer(db.Model):
     __tablename__ = 'volunteer'
-    # Changed to String to match the actual data type
     id = db.Column(db.String(100), primary_key=True)
     name = db.Column(db.String(100))
     team = db.Column(db.String(100))
@@ -19,35 +19,19 @@ class Attendance(db.Model):
     volunteer_id = db.Column(db.String(100), db.ForeignKey('volunteer.id'))
     check_in = db.Column(db.DateTime)
     check_out = db.Column(db.DateTime)
-    # meal_type = db.Column(db.String(50))
     breakfast = db.Column(db.Boolean, default=False)
     lunch = db.Column(db.Boolean, default=False)
     dinner = db.Column(db.Boolean, default=False)
 
 
-    # def is_meal_time(self, event='check_in'):
-    #     """Check if the event time (check_in or check_out) falls within meal time slots."""
-    #     if event == 'check_in' and self.check_in:
-    #         event_time = self.check_in.time()
-    #     elif event == 'check_out' and self.check_out:
-    #         event_time = self.check_out.time()
-    #     else:
-    #         return False
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    # Increase length to 256
+    password_hash = db.Column(db.String(256), nullable=False)
 
-    #     # Define meal time ranges
-    #     breakfast_start = time(7, 0)
-    #     breakfast_end = time(9, 0)
-    #     lunch_start = time(11, 0)
-    #     lunch_end = time(13, 0)
-    #     dinner_start = time(17, 0)
-    #     dinner_end = time(19, 0)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
 
-    #     # Check if event_time falls within any meal time slots
-    #     if breakfast_start <= event_time <= breakfast_end:
-    #         return "Breakfast"
-    #     elif lunch_start <= event_time <= lunch_end:
-    #         return "Lunch"
-    #     elif dinner_start <= event_time <= dinner_end:
-    #         return "Dinner"
-    #     else:
-    #         return False
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)

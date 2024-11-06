@@ -5,3 +5,5 @@ Openpyxl
 pytz
 psycopg2-binary
 flask_migrate
+flask-login
+werkzeug

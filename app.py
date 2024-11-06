@@ -1,28 +1,35 @@
-from database.model import db, Volunteer, Attendance
-from flask import Flask, render_template, request, jsonify, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, date
 import json
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
+from flask_migrate import Migrate
+from datetime import datetime, date, time
 import pytz
 import os
 import pandas as pd
-from flask import send_file
 import io
-
-# Import the configuration
+from flask import send_file
+from flask_login import login_user, login_required, logout_user, current_user
+from login.extensions import db, login_manager
+from login.login import login_bp
 from database.config import Config
-from flask_migrate import Migrate
+from database.model import Volunteer, Attendance, User
 
 app = Flask(__name__)
-# db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 app.config.from_object(Config)
-db.init_app(app)  # Initialize the db instance with the Flask app
+db.init_app(app)
+migrate = Migrate(app, db)  # Initialize Flask-Migrate
+login_manager.init_app(app)
+login_manager.login_view = 'login_bp.login'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+app.register_blueprint(login_bp)
 
 local_tz = pytz.timezone('Asia/Phnom_Penh')
 
-# Import models
-from datetime import time
 # Routes for web pages
 # Meal times configuration
 BREAKFAST_TIME = (time(7, 0), time(9, 0))
@@ -30,6 +37,8 @@ LUNCH_TIME = (time(11, 0), time(13, 0))
 DINNER_TIME = (time(17, 0), time(19, 0))
 
 # Helper function to determine if the current time is within meal times
+
+
 def get_meal_column():
     current_time = datetime.now().time()
     if BREAKFAST_TIME[0] <= current_time <= BREAKFAST_TIME[1]:
@@ -40,17 +49,21 @@ def get_meal_column():
         return 'dinner'
     return None
 
+
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html')
+    return render_template('index.html')  # Render the index template
 
 
 @app.route('/scanner.html')
+@login_required
 def scanner():
     return render_template('scanner.html')
 
 
 @app.route('/dashboard.html')
+@login_required
 def dashboard():
     selected_date_str = request.args.get('date')
     search_query = request.args.get('search')
@@ -80,6 +93,7 @@ def dashboard():
     return render_template('dashboard.html', attendances=attendances, selected_date=selected_date)
 
 # API Routes
+
 
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
@@ -158,6 +172,7 @@ def process_scan():
             'success': False,
             'message': f'Error processing scan: {str(e)}'
         })
+
 
 @app.route('/api/confirm', methods=['POST'])
 def confirm_scan():
@@ -247,7 +262,7 @@ def confirm_scan():
             'message': f'Error confirming scan: {str(e)}'
         })
 
-        
+
 @app.route('/download-attendance', methods=['GET'])
 def download_attendance():
     selected_date_str = request.args.get('date')
@@ -290,7 +305,6 @@ def download_attendance():
     output.seek(0)
 
     return send_file(output, download_name=f'attendance_{selected_date_str}.xlsx', as_attachment=True)
-
 
 
 @app.route('/api/import-volunteers', methods=['POST'])
