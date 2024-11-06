@@ -53,7 +53,7 @@ def get_meal_column():
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html')  # Render the index template
+    return render_template('index.html')
 
 
 @app.route('/scanner.html')
