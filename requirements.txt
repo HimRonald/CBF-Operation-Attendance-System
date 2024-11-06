@@ -4,3 +4,4 @@ Pandas
 Openpyxl
 pytz
 psycopg2-binary
+flask_migrate
