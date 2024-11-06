@@ -1,8 +1,12 @@
-# model.py
 from datetime import time
 from flask_login import UserMixin
 from login.extensions import db  # Import db from extensions
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class Volunteer(db.Model):
@@ -27,11 +31,17 @@ class Attendance(db.Model):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
-    # Increase length to 256
     password_hash = db.Column(db.String(256), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        logger.debug(
+            f"Password hash set for user {self.username}: {self.password_hash}")
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        logger.debug(f"Checking password for user {self.username}")
+        logger.debug(f"Stored password hash: {self.password_hash}")
+        result = check_password_hash(self.password_hash, password)
+        logger.debug(
+            f"Password check result for user {self.username}: {result}")
+        return result
