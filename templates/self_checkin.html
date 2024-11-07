@@ -25,11 +25,27 @@
       #self-checkin {
         font-size: 2em;
         font-weight: bold;
+        display: flex;
+        flex-direction: column; /* Stack logo and text vertically */
+        align-items: center;
+        justify-content: center;
+      }
+      #logo {
+        width: 250px; /* Increase logo size */
+        height: 250px;
+        margin-bottom: 20px; /* Space between logo and text */
+      }
+      #details {
+        font-size: 1.5em; /* Increase the size of check-in details */
       }
     </style>
   </head>
   <body>
-    <div id="self-checkin">CBF 2024 Attendance Self Check-In</div>
+    <div id="self-checkin">
+      <img id="logo" src="static/assets/cbflogo.png" alt="CBF Logo" />
+      <!-- Logo image -->
+      CBF 2024 Attendance Self Check-In
+    </div>
 
     <form id="checkin-form">
       <input type="text" id="json-input" name="json-input" required />
@@ -43,9 +59,10 @@
 
         // Display the message for 20 seconds before resetting
         setTimeout(() => {
-          selfCheckin.innerHTML = "CBF 2024 Attendance Self Check-In";
+          selfCheckin.innerHTML =
+            '<img id="logo" src="static/assets/cbflogo.png" alt="CBF Logo" /> CBF 2024 Attendance Self Check-In';
           selfCheckin.style.fontSize = "2em";
-        }, 3000);
+        }, 5000);
       }
 
       function submitForm() {
@@ -70,7 +87,7 @@
           .then((data) => {
             if (data.success) {
               displayMessage(
-                `Name: ${data.volunteer.name}<br>Team: ${data.volunteer.team}<br>Check-in: ${data.volunteer.check_in_time}`
+                `<div id="details">Name: ${data.volunteer.name}<br>Team: ${data.volunteer.team}<br>Check-in: ${data.volunteer.check_in_time}</div>`
               );
             } else {
               displayMessage(data.message);

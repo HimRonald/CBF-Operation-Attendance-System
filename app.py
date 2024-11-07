@@ -130,9 +130,15 @@ def self_checkins():
         ).first()
 
         if existing_attendance:
+            # Volunteer already checked in today
             return jsonify({
                 'success': False,
-                'message': 'Already checked in today'
+                'message': f'{volunteer.name} has already checked in today.',
+                'volunteer': {
+                    'name': volunteer.name,
+                    'team': volunteer.team,
+                    'check_in_time': existing_attendance.check_in.strftime('%I:%M:%S %p')
+                }
             })
 
         # Perform check-in
@@ -150,7 +156,6 @@ def self_checkins():
                 'name': volunteer.name,
                 'team': volunteer.team,
                 'check_in_time': new_attendance.check_in.strftime('%I:%M:%S %p')
-
             }
         })
 
@@ -159,6 +164,7 @@ def self_checkins():
             'success': False,
             'message': f'Error processing check-in: {str(e)}'
         })
+
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
     try:
