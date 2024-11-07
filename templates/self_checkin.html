@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Self Check-In</title>
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+      #photo {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 20px;
+      }
+      #checkin-form,
+      #response {
+        display: none;
+      }
+      #self-checkin {
+        font-size: 2em;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="self-checkin">CBF 2024 Attendance Self Check-In</div>
+
+    <form id="checkin-form">
+      <input type="text" id="json-input" name="json-input" required />
+    </form>
+
+    <script>
+      function displayMessage(message) {
+        const selfCheckin = document.getElementById("self-checkin");
+        selfCheckin.innerHTML = message;
+        selfCheckin.style.fontSize = "1.5em";
+
+        // Display the message for 20 seconds before resetting
+        setTimeout(() => {
+          selfCheckin.innerHTML = "CBF 2024 Attendance Self Check-In";
+          selfCheckin.style.fontSize = "2em";
+        }, 3000);
+      }
+
+      function submitForm() {
+        const jsonInput = document.getElementById("json-input").value;
+        let formData;
+
+        try {
+          formData = JSON.parse(jsonInput);
+        } catch (error) {
+          displayMessage("Invalid JSON format");
+          return;
+        }
+
+        fetch("/api/self_checkins", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              displayMessage(
+                `Name: ${data.volunteer.name}<br>Team: ${data.volunteer.team}<br>Check-in: ${data.volunteer.check_in_time}`
+              );
+            } else {
+              displayMessage(data.message);
+            }
+          })
+          .catch((error) => {
+            displayMessage("Error: " + error);
+          });
+      }
+
+      document.addEventListener("keydown", function (event) {
+        const jsonInput = document.getElementById("json-input");
+
+        if (event.key === "Enter") {
+          event.preventDefault();
+          submitForm();
+          jsonInput.value = ""; // Clear the input field after submission
+        } else if (event.key !== "Shift" && event.key !== "CapsLock") {
+          jsonInput.value += event.key;
+        }
+      });
+    </script>
+  </body>
+</html>

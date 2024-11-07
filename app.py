@@ -12,6 +12,7 @@ from login.extensions import db, login_manager
 from login.login import login_bp
 from database.config import Config
 from database.model import Volunteer, Attendance, User
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -19,6 +20,8 @@ db.init_app(app)
 migrate = Migrate(app, db)  # Initialize Flask-Migrate
 login_manager.init_app(app)
 login_manager.login_view = 'login_bp.login'
+
+CORS(app)
 
 
 @login_manager.user_loader
@@ -62,6 +65,12 @@ def scanner():
     return render_template('scanner.html')
 
 
+@app.route('/self_checkin.html')
+@login_required
+def self_checkin():
+    return render_template('self_checkin.html')
+
+
 @app.route('/dashboard.html')
 @login_required
 def dashboard():
@@ -95,6 +104,61 @@ def dashboard():
 # API Routes
 
 
+@app.route('/api/self_checkins', methods=['POST'])
+def self_checkins():
+    try:
+        data = request.json
+        volunteer_id = data['id']
+        volunteer_name = data['name']
+        volunteer_team = data['team']
+
+        # Find volunteer in database
+        volunteer = Volunteer.query.filter_by(
+            id=volunteer_id, name=volunteer_name, team=volunteer_team).first()
+
+        if not volunteer:
+            return jsonify({
+                'success': False,
+                'message': 'Volunteer not found'
+            })
+
+        # Check if already checked in today
+        today = datetime.now().date()
+        existing_attendance = Attendance.query.filter(
+            Attendance.volunteer_id == volunteer.id,
+            db.func.date(Attendance.check_in) == today
+        ).first()
+
+        if existing_attendance:
+            return jsonify({
+                'success': False,
+                'message': 'Already checked in today'
+            })
+
+        # Perform check-in
+        new_attendance = Attendance(
+            volunteer_id=volunteer.id,
+            check_in=datetime.now()
+        )
+        db.session.add(new_attendance)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Check-in successful',
+            'volunteer': {
+                'name': volunteer.name,
+                'team': volunteer.team,
+                'check_in_time': new_attendance.check_in.strftime('%I:%M:%S %p')
+
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error processing check-in: {str(e)}'
+        })
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
     try:

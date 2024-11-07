@@ -7,3 +7,4 @@ psycopg2-binary
 flask_migrate
 flask-login
 werkzeug
+flask-cors
