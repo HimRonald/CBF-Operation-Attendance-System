@@ -11,8 +11,9 @@ from flask_login import login_user, login_required, logout_user, current_user
 from login.extensions import db, login_manager
 from login.login import login_bp
 from database.config import Config
-from database.model import Volunteer, Attendance, User
+from database.model import Volunteer, Attendance, User, CheckMeal
 from flask_cors import CORS
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -37,7 +38,7 @@ local_tz = pytz.timezone('Asia/Phnom_Penh')
 # Meal times configuration
 BREAKFAST_TIME = (time(7, 0), time(9, 0))
 LUNCH_TIME = (time(11, 0), time(13, 0))
-DINNER_TIME = (time(17, 0), time(19, 0))
+DINNER_TIME = (time(22, 0), time(23, 59))
 
 # Helper function to determine if the current time is within meal times
 
@@ -70,10 +71,10 @@ def scanner():
 def self_checkin():
     return render_template('self_checkin.html')
 
-
 @app.route('/dashboard.html')
 @login_required
 def dashboard():
+    # Your existing code
     selected_date_str = request.args.get('date')
     search_query = request.args.get('search')
 
@@ -82,13 +83,27 @@ def dashboard():
     else:
         selected_date = date.today()
 
-    query = Attendance.query.join(Volunteer).order_by(Attendance.check_in)
+    # Query to get the latest check-in record for each volunteer, with meals
+    subquery = db.session.query(
+        Attendance.volunteer_id,
+        db.func.max(Attendance.check_in).label('latest_check_in')
+    ).group_by(Attendance.volunteer_id).subquery()
 
+    query = Attendance.query.options(joinedload(Attendance.volunteer)).outerjoin(
+        subquery,
+        (Attendance.volunteer_id == subquery.c.volunteer_id) &
+        (Attendance.check_in == subquery.c.latest_check_in)
+    ).join(Volunteer).order_by(Attendance.check_in)
+
+    # Apply search filter if provided
     if search_query:
         query = query.filter(
             (Volunteer.name.ilike(f'%{search_query}%')) |
             (Volunteer.team.ilike(f'%{search_query}%'))
         )
+
+    # Apply date filter to show only records from the selected date
+    query = query.filter(db.func.date(Attendance.check_in) == selected_date)
 
     attendances = query.all()
 
@@ -100,7 +115,6 @@ def dashboard():
             attendance.check_out = attendance.check_out.astimezone(local_tz)
 
     return render_template('dashboard.html', attendances=attendances, selected_date=selected_date)
-
 # API Routes
 
 
@@ -164,7 +178,6 @@ def self_checkins():
             'success': False,
             'message': f'Error processing check-in: {str(e)}'
         })
-
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
     try:
@@ -185,7 +198,7 @@ def process_scan():
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
-        ).first()
+        ).order_by(Attendance.check_in.desc()).first()
 
         if existing_attendance:
             if existing_attendance.check_out is None:
@@ -215,14 +228,15 @@ def process_scan():
                     })
             else:
                 return jsonify({
-                    'success': False,
-                    'message': f'{volunteer.name} has already checked out today',
+                    'success': True,
+                    'message': f'{volunteer.name} has checked out previously. Add a note if needed.',
                     'volunteer': {
                         'name': volunteer.name,
                         'team': volunteer.team,
                         'check_in_time': existing_attendance.check_in.strftime('%H:%M:%S'),
                         'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
-                    }
+                    },
+                    'prompt_note': True
                 })
 
         # Prepare for new check-in
@@ -242,8 +256,6 @@ def process_scan():
             'success': False,
             'message': f'Error processing scan: {str(e)}'
         })
-
-
 @app.route('/api/confirm', methods=['POST'])
 def confirm_scan():
     try:
@@ -251,6 +263,7 @@ def confirm_scan():
         volunteer_name = data['name']
         volunteer_team = data['team']
         meal_type = data.get('meal_type')
+        note = data.get('note')  # Capture the note if provided
 
         # Find volunteer in database
         volunteer = Volunteer.query.filter_by(
@@ -267,7 +280,7 @@ def confirm_scan():
         existing_attendance = Attendance.query.filter(
             Attendance.volunteer_id == volunteer.id,
             db.func.date(Attendance.check_in) == today
-        ).first()
+        ).order_by(Attendance.check_in.desc()).first()
 
         if existing_attendance:
             if existing_attendance.check_out is None:
@@ -286,7 +299,6 @@ def confirm_scan():
                             }
                         })
                 else:
-                    # Check out the volunteer
                     existing_attendance.check_out = datetime.now()
                     db.session.commit()
                     return jsonify({
@@ -310,9 +322,13 @@ def confirm_scan():
                     }
                 })
 
-        # Create new attendance record
-        attendance = Attendance(volunteer_id=volunteer.id,
-                                check_in=datetime.now())
+        # Create new attendance record with note and button_show_note if previously checked out
+        attendance = Attendance(
+            volunteer_id=volunteer.id,
+            check_in=datetime.now(),
+            note=note if existing_attendance else None,
+            button_show_note=True if existing_attendance else False
+        )
         db.session.add(attendance)
         db.session.commit()
 
@@ -331,6 +347,7 @@ def confirm_scan():
             'success': False,
             'message': f'Error confirming scan: {str(e)}'
         })
+
 
 
 @app.route('/download-attendance', methods=['GET'])

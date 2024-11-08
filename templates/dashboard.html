@@ -41,9 +41,11 @@
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Team</th>
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-in Time</th>
                                 <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Check-out Time</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Breakfast</th> <!-- New Column -->
-                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Lunch</th> <!-- New Column -->
-                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Dinner</th> <!-- New Column -->
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Breakfast</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Lunch</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Dinner</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-300 text-left">Note</th>
+
                             </tr>
                         </thead>
                         <tbody>
@@ -55,10 +57,25 @@
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.volunteer.team }}</td>
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_in.strftime('%H:%M:%S') }}</td>
                                 <td class="px-6 py-4 border-b border-gray-300">{{ attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else 'N/A' }}</td>
-                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.breakfast else 'No' }}</td> <!-- Breakfast -->
-                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.lunch else 'No' }}</td> <!-- Lunch -->
-                                <td class="px-6 py-4 border-b border-gray-300">{{ 'Yes' if attendance.dinner else 'No' }}</td> <!-- Dinner -->
+                                <td>{{ 'Yes' if attendance.checkmeal and attendance.checkmeal.breakfast else 'No' }}</td>
+                                <td>{{ 'Yes' if attendance.checkmeal and attendance.checkmeal.lunch else 'No' }}</td>
+                                <td>{{ 'Yes' if attendance.checkmeal and attendance.checkmeal.dinner else 'No' }}</td>
+    
+                                <td class="px-6 py-4 border-b border-gray-300">
+                                    {% if attendance.button_show_note %}
+                                    <div class="relative group">
+                                        <button class="text-blue-500 underline">Show Note</button>
+                                        <div class="absolute hidden group-hover:block bg-white text-black text-sm p-4 rounded-lg shadow-lg z-10 -top-2 left-1/2 transform -translate-x-1/2 w-64">
+                                            <strong>Note:</strong>
+                                            <p>{{ attendance.note }}</p>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span>N/A</span>
+                                    {% endif %}
+                                </td>                                
                             </tr>
+                            
                             {% endif %}
                             {% endfor %}
                         </tbody>

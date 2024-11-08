@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import time, datetime
 from flask_login import UserMixin
 from login.extensions import db  # Import db from extensions
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -23,8 +23,22 @@ class Attendance(db.Model):
     volunteer_id = db.Column(db.String(100), db.ForeignKey('volunteer.id'))
     check_in = db.Column(db.DateTime)
     check_out = db.Column(db.DateTime)
+    note = db.Column(db.String(100))
+    button_show_note = db.Column(db.Boolean, default=False)
+    
+    # Relationship to CheckMeal for meal details
+    checkmeal = db.relationship('CheckMeal', backref='attendance', uselist=False)
+
+class CheckMeal(db.Model):
+    __tablename__ = 'checkmeal'
+    id = db.Column(db.Integer, primary_key=True)
+    volunteer_id = db.Column(db.String(100), db.ForeignKey('volunteer.id'))
+    attendance_id = db.Column(db.Integer, db.ForeignKey('attendance.id'), unique=True)  # Direct link to Attendance
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     breakfast = db.Column(db.Boolean, default=False)
+    breakfast_time = db.Column(db.DateTime)
     lunch = db.Column(db.Boolean, default=False)
+    lunch_time = db.Column(db.DateTime)
     dinner = db.Column(db.Boolean, default=False)
 
 
