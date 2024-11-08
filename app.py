@@ -1,3 +1,5 @@
+import logging
+import re
 import json
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
 from flask_migrate import Migrate
@@ -165,16 +167,60 @@ def self_checkins():
             'message': f'Error processing check-in: {str(e)}'
         })
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+
 @app.route('/api/scan', methods=['POST'])
 def process_scan():
     try:
-        scan_data = request.json['code']
-        volunteer_data = json.loads(scan_data)
+        logging.info('Processing scan request')
 
-        # Find volunteer in database
-        volunteer = Volunteer.query.get(volunteer_data['id'])
+        # Get scan data from request
+        scan_data = request.json.get('code') or request.args.get('code')
+        logging.info(f'Scan data received: {scan_data}')
+
+        # Check if the scan data is a URL or a JSON object
+        if scan_data.startswith('https://cbf-volunteer.oudommeng.tech/'):
+            logging.info('Scan data is a URL')
+            # Handle web format URL: Extract volunteer_id and volunteer_name from the URL
+            url_pattern = r'https://cbf-volunteer\.oudommeng\.tech/([A-Za-z0-9\-]+)-([A-Za-z0-9\-_]+)'
+            match = re.match(url_pattern, scan_data)
+
+            if not match:
+                logging.error('Invalid URL format')
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid URL format'
+                })
+
+            volunteer_id = match.group(1)
+            volunteer_name = match.group(2).replace(
+                '_', ' ')  # Replace underscores with spaces
+            logging.info(
+                f'Extracted volunteer_id: {volunteer_id}, volunteer_name: {volunteer_name}')
+
+            # Find volunteer in database by ID and Name
+            volunteer = Volunteer.query.filter_by(
+                id=volunteer_id, name=volunteer_name).first()
+
+        else:
+            logging.info('Scan data is a JSON object')
+            # Handle JSON format: Process the scan data as JSON
+            volunteer_data = json.loads(scan_data)
+            volunteer_id = volunteer_data['id']
+            volunteer_name = volunteer_data['name']
+            logging.info(
+                f'Extracted volunteer_id: {volunteer_id}, volunteer_name: {volunteer_name}')
+
+            # Find volunteer in database by ID and Name
+            volunteer = Volunteer.query.filter_by(
+                id=volunteer_id, name=volunteer_name).first()
 
         if not volunteer:
+            logging.warning('Volunteer not found')
             return jsonify({
                 'success': False,
                 'message': 'Volunteer not found'
@@ -191,6 +237,8 @@ def process_scan():
             if existing_attendance.check_out is None:
                 meal_column = get_meal_column()
                 if meal_column and not getattr(existing_attendance, meal_column):
+                    logging.info(
+                        f'{volunteer.name} is currently checked in. Confirm meal: {meal_column.capitalize()}.')
                     return jsonify({
                         'success': True,
                         'message': f'{volunteer.name} is currently checked in. Confirm meal: {meal_column.capitalize()}.',
@@ -203,6 +251,8 @@ def process_scan():
                         }
                     })
                 else:
+                    logging.info(
+                        f'{volunteer.name} is currently checked in. Please confirm check-out.')
                     return jsonify({
                         'success': True,
                         'message': f'{volunteer.name} is currently checked in. Please confirm check-out.',
@@ -214,6 +264,7 @@ def process_scan():
                         }
                     })
             else:
+                logging.info(f'{volunteer.name} has already checked out today')
                 return jsonify({
                     'success': False,
                     'message': f'{volunteer.name} has already checked out today',
@@ -224,24 +275,13 @@ def process_scan():
                         'check_out_time': existing_attendance.check_out.strftime('%H:%M:%S')
                     }
                 })
-
-        # Prepare for new check-in
-        return jsonify({
-            'success': True,
-            'message': f'{volunteer.name} is ready to check in. Please confirm.',
-            'volunteer': {
-                'name': volunteer.name,
-                'team': volunteer.team,
-                'check_in_time': None,
-                'check_out_time': None
-            }
-        })
-
     except Exception as e:
+        logging.error(f'Error processing scan: {e}')
         return jsonify({
             'success': False,
-            'message': f'Error processing scan: {str(e)}'
+            'message': 'An error occurred while processing the scan'
         })
+
 
 
 @app.route('/api/confirm', methods=['POST'])
